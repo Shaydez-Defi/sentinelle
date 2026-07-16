@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-// Deployer wallet must be funded with at least 260 testnet MON before running
-// this script (250 for liquidity + gas). Testnet MON can be claimed from the
+// Deployer wallet must be funded with at least 6 testnet MON before running
+// this script (4 for liquidity + gas buffer). Testnet MON can be claimed from the
 // Monad faucet: https://faucet.monad.xyz
 
 import "forge-std/Script.sol";
