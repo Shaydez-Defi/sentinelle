@@ -121,7 +121,7 @@ contract VaultManager is Ownable, ReentrancyGuard {
 
     /// @notice Set the MON/USD oracle price used for collateral valuation.
     /// @dev Only callable by the contract owner. A value of zero disables borrowing and withdrawals.
-    /// @param newPrice The new MON price in USD, scaled by 1e18.
+    /// @param newPrice The new MON price in USD, scaled to 6 decimals, matching mUSDC precision (e.g. 2000000000 represents $2000.00).
     function setMonPrice(uint256 newPrice) external onlyOwner {
         uint256 oldPrice = monPriceUSD;
         monPriceUSD = newPrice;
