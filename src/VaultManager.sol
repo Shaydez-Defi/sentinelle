@@ -6,6 +6,9 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {mUSDC} from "./mUSDC.sol";
 import {MiniSwap} from "./MiniSwap.sol";
 
+/// @title VaultManager
+/// @notice Manages MON collateral vaults: deposit, borrow mUSDC, repay, withdraw, and automated self-repayment.
+/// @dev Holds MON collateral and mUSDC debt positions. Uses MiniSwap for automated debt repayment when health factors drop.
 contract VaultManager is Ownable, ReentrancyGuard {
     mUSDC public immutable musdc;
     MiniSwap public immutable miniSwap;
@@ -39,21 +42,34 @@ contract VaultManager is Ownable, ReentrancyGuard {
         musdc.approve(address(this), type(uint256).max);
     }
 
+    /// @notice Returns the USD value of a user's MON collateral.
+    /// @dev Uses the stored monPriceUSD oracle price, scaled by 1e18.
+    /// @param user The address to query.
+    /// @return The collateral value in USD (6-decimal mUSDC precision).
     function collateralValueUSD(address user) public view returns (uint256) {
         return (collateral[user] * monPriceUSD) / 1e18;
     }
 
+    /// @notice Returns the health factor for a user's vault position.
+    /// @dev healthFactor = (collateralValueUSD * 100) / debt. Returns uint256.max when there is no debt.
+    /// @param user The address to query.
+    /// @return The health factor as a percentage (100 = 100%).
     function healthFactor(address user) public view returns (uint256) {
         if (debt[user] == 0) return type(uint256).max;
         return collateralValueUSD(user) * 100 / debt[user];
     }
 
+    /// @notice Deposit MON as collateral into the caller's vault.
+    /// @dev The deposited amount is tracked in collateral[msg.sender].
     function deposit() external payable {
         require(msg.value > 0, "VaultManager: zero deposit");
         collateral[msg.sender] += msg.value;
         emit Deposited(msg.sender, msg.value);
     }
 
+    /// @notice Borrow mUSDC against deposited MON collateral.
+    /// @dev Reverts if the resulting health factor would fall below MIN_COLLATERAL_RATIO (150%).
+    /// @param usdcAmount The amount of mUSDC to mint and receive.
     function borrow(uint256 usdcAmount) external {
         require(usdcAmount > 0, "VaultManager: zero borrow");
         uint256 newDebt = debt[msg.sender] + usdcAmount;
@@ -67,6 +83,9 @@ contract VaultManager is Ownable, ReentrancyGuard {
         emit Borrowed(msg.sender, usdcAmount);
     }
 
+    /// @notice Repay outstanding mUSDC debt with the caller's mUSDC balance.
+    /// @dev Burns mUSDC from msg.sender. If usdcAmount exceeds the debt, only the remaining debt is repaid.
+    /// @param usdcAmount The amount of mUSDC to repay.
     function repay(uint256 usdcAmount) external {
         require(usdcAmount > 0, "VaultManager: zero repay");
         uint256 actualAmount = usdcAmount > debt[msg.sender]
@@ -77,6 +96,11 @@ contract VaultManager is Ownable, ReentrancyGuard {
         emit Repaid(msg.sender, actualAmount);
     }
 
+    /// @notice Withdraw MON collateral from the caller's vault.
+    /// @dev Uses a low-level call (not transfer) to avoid the 2300 gas stipend limitation,
+    ///      which would break withdrawals for smart-contract wallets. Reverts if the withdrawal
+    ///      would violate the minimum collateral ratio.
+    /// @param monAmount The amount of MON to withdraw.
     function withdraw(uint256 monAmount) external nonReentrant {
         require(monAmount > 0, "VaultManager: zero withdraw");
         require(
@@ -90,17 +114,27 @@ contract VaultManager is Ownable, ReentrancyGuard {
                 "VaultManager: health factor too low"
             );
         }
-        payable(msg.sender).transfer(monAmount);
+        (bool success, ) = payable(msg.sender).call{value: monAmount}("");
+        require(success, "VaultManager: MON transfer failed");
         emit Withdrawn(msg.sender, monAmount);
     }
 
+    /// @notice Set the MON/USD oracle price used for collateral valuation.
+    /// @dev Only callable by the contract owner. A value of zero disables borrowing and withdrawals.
+    /// @param newPrice The new MON price in USD, scaled by 1e18.
     function setMonPrice(uint256 newPrice) external onlyOwner {
         uint256 oldPrice = monPriceUSD;
         monPriceUSD = newPrice;
         emit PriceUpdated(oldPrice, newPrice);
     }
 
+    /// @notice Automatically repay a portion of a user's debt by selling their MON collateral on MiniSwap.
+    /// @dev Callable by anyone. Triggers when a position's health factor drops below SELF_REPAY_THRESHOLD (130%).
+    ///      Sells REPAY_PERCENT_BPS (30%) of debt worth of MON, swaps for mUSDC, and burns the repaid amount.
+    ///      Reverts if monPriceUSD is zero (price oracle not set).
+    /// @param user The address of the under-collateralized vault to self-repay.
     function selfRepay(address user) external nonReentrant {
+        require(monPriceUSD > 0, "VaultManager: price not set");
         uint256 hf = healthFactor(user);
         require(hf < SELF_REPAY_THRESHOLD, "VaultManager: health factor is safe");
         require(debt[user] > 0, "VaultManager: no debt to repay");
