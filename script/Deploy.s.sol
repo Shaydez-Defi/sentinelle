@@ -30,14 +30,14 @@ contract DeploySentinelle is Script {
         // 5. Temporarily authorize deployer to mint mUSDC for liquidity seeding
         musdc.setMinter(msg.sender, true);
 
-        // 6. Mint 500,000 mUSDC to deployer for liquidity seeding
-        musdc.mint(msg.sender, 500_000 * 10 ** 6);
+        // 6. Mint 8,000 mUSDC to deployer for liquidity seeding
+        musdc.mint(msg.sender, 8_000 * 10 ** 6);
 
         // 7. Approve MiniSwap to spend deployer's mUSDC
         musdc.approve(address(miniSwap), type(uint256).max);
 
-        // 8. Seed liquidity: 500,000 mUSDC + 250 MON ($2000 per MON)
-        miniSwap.addLiquidity{value: 250 ether}(500_000 * 10 ** 6);
+        // 8. Seed liquidity: 8,000 mUSDC + 4 MON ($2000 per MON)
+        miniSwap.addLiquidity{value: 4 ether}(8_000 * 10 ** 6);
 
         // 9. Set initial MON price at $2000.00 (6 decimal precision)
         vaultManager.setMonPrice(2000 * 10 ** 6);
