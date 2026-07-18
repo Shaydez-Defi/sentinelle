@@ -721,6 +721,21 @@ h1.mid{
   margin-right: 6px;
 }
 </style>
+<!-- [TEMP DEBUG] WebSocket instrumentation for diagnosing WalletConnect relay failures -->
+<script>
+(function() {
+  const OrigWS = window.WebSocket;
+  window.WebSocket = function(url, protocols) {
+    console.log('[WS DEBUG] Attempting connection to:', url);
+    const ws = protocols ? new OrigWS(url, protocols) : new OrigWS(url);
+    ws.addEventListener('open', () => console.log('[WS DEBUG] OPEN:', url));
+    ws.addEventListener('error', (e) => console.log('[WS DEBUG] ERROR:', url, e));
+    ws.addEventListener('close', (e) => console.log('[WS DEBUG] CLOSE:', url, 'code:', e.code, 'reason:', e.reason, 'wasClean:', e.wasClean));
+    return ws;
+  };
+  window.WebSocket.prototype = OrigWS.prototype;
+})();
+</script>
 <!-- TODO: Remove Eruda before final submission - debugging only -->
 <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
 <script>eruda.init();</script>
