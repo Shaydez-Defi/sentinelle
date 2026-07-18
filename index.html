@@ -30,6 +30,13 @@ html,body{
   font-family:'Inter',sans-serif;
   height:100%;
   overflow-x:hidden;
+  -ms-overflow-style:none;
+  scrollbar-width:none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar{
+  display:none;
 }
 
 .app{
@@ -493,9 +500,7 @@ h1.mid{
 
 @media (min-width:900px){
   .log-wrap{ max-height:420px; overflow-y:auto; }
-  .log-wrap::-webkit-scrollbar{ width:6px; }
-  .log-wrap::-webkit-scrollbar-thumb{ background:rgba(231,222,230,0.15); border-radius:3px; }
-  .log-wrap::-webkit-scrollbar-track{ background:transparent; }
+
 }
 .log-item{
   padding:16px 18px;
@@ -847,6 +852,18 @@ h1.mid{
     <div class="modal-actions">
       <button class="modal-btn" onclick="closeBorrowModal()">Cancel</button>
       <button class="modal-btn confirm" onclick="confirmBorrow()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="depositModal" onclick="if(event.target===this)closeDepositModal()">
+  <div class="modal-box">
+    <div class="modal-label">DEPOSIT</div>
+    <div class="modal-title">Amount of MON to deposit</div>
+    <input class="modal-input" id="depositAmountInput" type="number" min="0" step="any" placeholder="0.00" onkeydown="if(event.key==='Enter')confirmDeposit();if(event.key==='Escape')closeDepositModal();">
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeDepositModal()">Cancel</button>
+      <button class="modal-btn confirm" onclick="confirmDeposit()">Confirm</button>
     </div>
   </div>
 </div>
@@ -1218,8 +1235,28 @@ async function addLogEntry(title, reason, timeStr, extraHtml){
 
 async function doDeposit(){
   if(!vaultWrite){ showToast('Wallet Required', 'Connect a real wallet first. This action is not available in demo mode.', 'error'); return; }
-  const amount = prompt('Amount of MON to deposit:');
-  if(!amount || isNaN(amount) || Number(amount) <= 0) return;
+  openDepositModal();
+}
+
+function openDepositModal(){
+  var modal = document.getElementById('depositModal');
+  var input = document.getElementById('depositAmountInput');
+  input.value = '';
+  modal.classList.add('visible');
+  setTimeout(function(){ input.focus(); }, 100);
+}
+
+function closeDepositModal(){
+  document.getElementById('depositModal').classList.remove('visible');
+}
+
+async function confirmDeposit(){
+  var amount = document.getElementById('depositAmountInput').value;
+  if(!amount || isNaN(amount) || Number(amount) <= 0){
+    showToast('Invalid Amount', 'Please enter a valid MON amount.', 'error');
+    return;
+  }
+  closeDepositModal();
   try{
     const tx = await vaultWrite.deposit({ value: ethers.parseEther(amount) });
     await tx.wait();
