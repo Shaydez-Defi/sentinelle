@@ -1209,7 +1209,11 @@ let state = {
   ethPrice: 4820 / 2.40
 };
 
+let dashboardRequestId = 0;
+
 async function runDashboardIntro(isLive){
+  const myRequestId = ++dashboardRequestId;
+
   const scoreEl = document.getElementById('healthScore');
   const collateralEl = document.getElementById('collateralVal');
   const debtEl = document.getElementById('debtVal');
@@ -1238,6 +1242,8 @@ async function runDashboardIntro(isLive){
       const isMaxHF = rawHF > 1000000000n || debtDisplayRounded === 0;
       const hfDisplay = isMaxHF ? 100 : Number(rawHF);
       const ltv = debtUSDC > 0 && collateralMON > 0 ? ((debtUSDC / (collateralMON * (state.ethPrice))) * 100) : 0;
+
+      if(myRequestId !== dashboardRequestId) return;
 
       state.health = hfDisplay;
       state.collateral = collateralMON;
@@ -1268,6 +1274,8 @@ async function runDashboardIntro(isLive){
     }
     return;
   }
+
+  if(myRequestId !== dashboardRequestId) return;
 
   countUp(scoreEl, 94, 0, '', 900);
   countUp(collateralEl, 2.40, 2, ' MON', 900);
