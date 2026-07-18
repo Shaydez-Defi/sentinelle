@@ -696,6 +696,10 @@ h1.mid{
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+<script type="module">
+  import { EthereumProvider } from "https://esm.sh/@walletconnect/ethereum-provider@2.17.0";
+  window.WalletConnectEthereumProvider = EthereumProvider;
+</script>
 </head>
 <body>
 
@@ -839,6 +843,7 @@ function showToast(title, message, type){
 const MONAD_CHAIN_ID = 10143;
 const MONAD_CHAIN_ID_HEX = '0x' + MONAD_CHAIN_ID.toString(16);
 const MONAD_RPC = 'https://testnet-rpc.monad.xyz';
+const WALLETCONNECT_PROJECT_ID = 'd451f929d40af9bf0edca03c159013d6';
 
 const VAULT_ADDRESS = '0x1EFE7CfC378480164E21155dc76E9c9325f7C825';
 const MUSDC_ADDRESS = '0xBa2328AA31007Ef5D963Ba0659F48eCF204a7B23';
@@ -866,6 +871,10 @@ const MUSDC_ABI = [
 ];
 
 let provider, signer, userAddress, vaultRead, vaultWrite, musdcWrite, isOwner = false;
+
+function isMobileDevice(){
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
 
 async function ensureMonadNetwork(){
   const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
@@ -918,36 +927,52 @@ function goTo(name, demo, live){
   }
 }
 
+async function finalizeConnection(ethProvider){
+  provider = new ethers.BrowserProvider(ethProvider);
+  signer = await provider.getSigner();
+  userAddress = await signer.getAddress();
+
+  vaultRead = new ethers.Contract(VAULT_ADDRESS, VAULT_ABI, provider);
+  vaultWrite = new ethers.Contract(VAULT_ADDRESS, VAULT_ABI, signer);
+  musdcWrite = new ethers.Contract(MUSDC_ADDRESS, MUSDC_ABI, signer);
+
+  const ownerAddr = await vaultRead.owner();
+  isOwner = ownerAddr.toLowerCase() === userAddress.toLowerCase();
+
+  goTo('dashboard', false, true);
+}
+
 async function connectWallet(){
   const btn = document.getElementById('connectBtn');
-  if(!window.ethereum){
-    showToast('No Wallet Found', 'Install MetaMask or another wallet, or use "View demo instead" below.', 'error');
-    return;
-  }
   btn.textContent = 'CONNECTING...';
   btn.classList.add('loading');
 
   try{
-    await window.ethereum.request({ method: 'eth_requestAccounts' });
-    await ensureMonadNetwork();
-
-    provider = new ethers.BrowserProvider(window.ethereum);
-    signer = await provider.getSigner();
-    userAddress = await signer.getAddress();
-
-    vaultRead = new ethers.Contract(VAULT_ADDRESS, VAULT_ABI, provider);
-    vaultWrite = new ethers.Contract(VAULT_ADDRESS, VAULT_ABI, signer);
-    musdcWrite = new ethers.Contract(MUSDC_ADDRESS, MUSDC_ABI, signer);
-
-    const ownerAddr = await vaultRead.owner();
-    isOwner = ownerAddr.toLowerCase() === userAddress.toLowerCase();
-
-    goTo('dashboard', false, true);
+    if(isMobileDevice() && !window.ethereum){
+      const wcProvider = await window.WalletConnectEthereumProvider.init({
+        projectId: WALLETCONNECT_PROJECT_ID,
+        chains: [10143],
+        showQrModal: true,
+        rpcMap: { 10143: MONAD_RPC }
+      });
+      await wcProvider.connect();
+      await finalizeConnection(wcProvider);
+    } else {
+      if(!window.ethereum){
+        showToast('No Wallet Found', 'Install MetaMask or another wallet, or use "View demo instead" below.', 'error');
+        btn.textContent = 'CONNECT WALLET';
+        btn.classList.remove('loading');
+        return;
+      }
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      await ensureMonadNetwork();
+      await finalizeConnection(window.ethereum);
+    }
   } catch(err){
     console.error(err);
     btn.textContent = 'CONNECT WALLET';
     btn.classList.remove('loading');
-    showToast('Connection Failed', err.message || 'Unknown error. Check your wallet and try again.', 'error');
+    showToast('Wallet connection was cancelled or failed.', err.message || 'Unknown error.', 'error');
   }
 }
 
