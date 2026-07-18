@@ -129,14 +129,20 @@ html,body{
 
 .icons{ display:flex; gap:10px; }
 
-.icons span{
+.icons a{
   font-family:'JetBrains Mono',monospace;
   font-size:10px;
   letter-spacing:0.05em;
-  color:var(--muted);
-  border:1px solid rgba(231,222,230,0.15);
+  color:var(--wine-bright);
+  text-decoration:none;
+  border:1px solid rgba(168,59,99,0.25);
   border-radius:6px;
   padding:7px 12px;
+  transition:background 0.2s;
+}
+
+.icons a:hover{
+  background:rgba(168,59,99,0.15);
 }
 
 .center{
@@ -199,22 +205,6 @@ h1.big{
 .rule{ height:1px; margin:0 40px; background:linear-gradient(90deg, transparent, rgba(110,37,69,0.5), transparent); }
 
 .cta-wrap{ display:flex; justify-content:center; padding:24px 0 8px; }
-
-.hero-foot{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  gap:8px;
-  padding-bottom:20px;
-}
-
-.hero-foot-dot{ color:var(--muted); font-size:11px; }
-
-.hero-tagline{
-  font-family:'Inter',sans-serif;
-  font-size:11px;
-  color:var(--muted);
-}
 
 .cta{
   font-family:'JetBrains Mono',monospace;
@@ -582,7 +572,7 @@ h1.mid{
 @media (min-width:900px){
   .topbar{ padding:22px 32px; }
   .mark{ font-size:15px; }
-  .icons span{ font-size:11px; padding:9px 16px; }
+  .icons a{ font-size:11px; padding:9px 16px; }
 
   .eyebrow{ font-size:13px; gap:22px; margin-bottom:34px; }
   .eyebrow .line{ width:72px; }
@@ -759,7 +749,7 @@ h1.mid{
     <div class="hero-inner">
       <div class="topbar">
         <div class="mark">SENTINELLE</div>
-        <div class="icons"><a href="https://github.com/Shaydez-Defi/sentinelle" target="_blank" rel="noopener">GITHUB</a><a href="https://github.com/Shaydez-Defi/sentinelle/blob/main/README.md" target="_blank" rel="noopener">DOCS</a></div>
+        <div class="icons"><a href="https://github.com/Shaydez-Defi/sentinelle" target="_blank" rel="noopener">GITHUB</a><a href="https://github.com/Shaydez-Defi/sentinelle/blob/master/README.md" target="_blank" rel="noopener">DOCS</a></div>
       </div>
       <div class="center">
         <div class="eyebrow"><span class="line"></span>GUARDING EVERY BLOCK<span class="line"></span></div>
@@ -772,11 +762,6 @@ h1.mid{
           <div class="meta"><div class="label">CHAIN</div><div class="value">Monad Testnet</div></div>
         </div>
         <div class="cta-wrap"><button class="cta" onclick="goTo('connect')">PROCEED</button></div>
-        <div class="hero-foot">
-          <span class="hero-tagline">Guarding every block on Monad</span>
-          <span class="hero-foot-dot">&middot;</span>
-          <span class="hero-tagline">Sentinelle 2026</span>
-        </div>
       </div>
     </div>
   </div>
