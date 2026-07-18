@@ -30,13 +30,51 @@ html,body{
   font-family:'Inter',sans-serif;
   height:100%;
   overflow-x:hidden;
-  -ms-overflow-style:none;
-  scrollbar-width:none;
 }
+
+/* Dashboard page scrollbar - styled */
 html::-webkit-scrollbar,
-body::-webkit-scrollbar,
-*::-webkit-scrollbar{
+body::-webkit-scrollbar{
+  width:8px;
+}
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track{
+  background:transparent;
+}
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb{
+  background:var(--wine-bright);
+  border-radius:4px;
+}
+html{
+  scrollbar-width:thin;
+  scrollbar-color:var(--wine-bright) transparent;
+}
+
+/* Execution Log scrollbar - styled */
+.log-wrap::-webkit-scrollbar{
+  width:6px;
+}
+.log-wrap::-webkit-scrollbar-track{
+  background:transparent;
+}
+.log-wrap::-webkit-scrollbar-thumb{
+  background:var(--wine-bright);
+  border-radius:3px;
+}
+.log-wrap{
+  scrollbar-width:thin;
+  scrollbar-color:var(--wine-bright) transparent;
+}
+
+/* Modal scrollbars - hidden */
+.modal-overlay::-webkit-scrollbar,
+.modal-box::-webkit-scrollbar{
   display:none;
+}
+.modal-overlay,
+.modal-box{
+  scrollbar-width:none;
 }
 
 .app{
@@ -762,6 +800,14 @@ h1.mid{
 .modal-input::placeholder{
   color:var(--muted);
   opacity:0.6;
+}
+.modal-input::-webkit-outer-spin-button,
+.modal-input::-webkit-inner-spin-button{
+  -webkit-appearance:none;
+  margin:0;
+}
+.modal-input{
+  -moz-appearance:textfield;
 }
 .modal-actions{
   display:flex;
