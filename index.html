@@ -1001,7 +1001,7 @@ h1.mid{
       <div class="col-right">
       <div class="section-label">POSITION</div>
       <div class="position-grid">
-        <div class="position-cell glass"><div class="cell-label">COLLATERAL</div><div class="cell-value" id="collateralVal">0.00 MON</div><div class="cell-sub">~4,820 USDC</div></div>
+        <div class="position-cell glass"><div class="cell-label">COLLATERAL</div><div class="cell-value" id="collateralVal">0.00 MON</div><div class="cell-sub" id="collateralUsd">~4,820 USDC</div></div>
         <div class="position-cell glass"><div class="cell-label">DEBT</div><div class="cell-value" id="debtVal">0 USDC</div><div class="cell-sub" id="ltvVal">25% LTV</div></div>
       </div>
 
@@ -1067,6 +1067,7 @@ const VAULT_ABI = [
   "function collateral(address user) view returns (uint256)",
   "function debt(address user) view returns (uint256)",
   "function healthFactor(address user) view returns (uint256)",
+  "function collateralValueUSD(address user) view returns (uint256)",
   "function monPriceUSD() view returns (uint256)",
   "event Deposited(address indexed user, uint256 amount)",
   "event Borrowed(address indexed user, uint256 amount)",
@@ -1223,6 +1224,14 @@ async function runDashboardIntro(isLive){
         vaultRead.healthFactor(userAddress)
       ]);
 
+      let collateralUSD = 0;
+      try{
+        const rawCollateralUSD = await vaultRead.collateralValueUSD(userAddress);
+        collateralUSD = parseFloat(ethers.formatUnits(rawCollateralUSD, 6));
+      } catch(e){
+        console.warn('collateralValueUSD fetch failed:', e);
+      }
+
       const collateralMON = parseFloat(ethers.formatEther(rawCollateral));
       const debtUSDC = parseFloat(ethers.formatUnits(rawDebt, 6));
       const debtDisplayRounded = Math.round(debtUSDC);
@@ -1239,17 +1248,23 @@ async function runDashboardIntro(isLive){
       countUp(debtEl, debtUSDC, 0, ' USDC', 900);
       ltvEl.textContent = (debtUSDC > 0 ? ltv.toFixed(0) : '0') + '% LTV';
 
+      const collateralUsdEl = document.getElementById('collateralUsd');
+      if(collateralUsdEl){
+        collateralUsdEl.textContent = collateralUSD > 0 ? '~' + Math.round(collateralUSD).toLocaleString() + ' USDC' : '~0 USDC';
+      }
+
+      statusEl.classList.remove('at-risk');
       if(hfDisplay < 130 && debtUSDC > 0){
         statusEl.textContent = 'AT RISK';
         statusEl.classList.add('at-risk');
       } else {
         statusEl.textContent = debtUSDC === 0 ? 'NO DEBT' : 'SAFE';
-        statusEl.classList.remove('at-risk');
       }
 
       document.getElementById('logWrap').innerHTML = '<div class="log-item"><div class="log-left"><div class="log-title">No activity yet</div><div class="log-reason">Deposit MON to open a position</div></div></div>';
     } catch(err){
       console.error('Failed to load live position:', err);
+      showToast('Live Data Error', err.shortMessage || err.message || 'Failed to load position.', 'error');
     }
     return;
   }
