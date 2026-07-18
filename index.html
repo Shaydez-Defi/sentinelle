@@ -694,6 +694,32 @@ h1.mid{
   margin-bottom:4px;
   display:block;
 }
+
+#debug-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.92);
+  color: #ff4444;
+  border-top: 2px solid #ff0000;
+  font-family: monospace;
+  font-size: 11px;
+  padding: 8px 12px;
+  z-index: 99999;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+#debug-panel .debug-entry {
+  border-bottom: 1px solid #333;
+  padding: 4px 0;
+}
+#debug-panel .debug-entry .debug-time {
+  color: #888;
+  margin-right: 6px;
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
 <script type="module">
@@ -702,6 +728,8 @@ h1.mid{
 </script>
 </head>
 <body>
+
+<div id="debug-panel"></div>
 
 <div class="app">
 
@@ -973,6 +1001,9 @@ async function connectWallet(){
     btn.textContent = 'CONNECT WALLET';
     btn.classList.remove('loading');
     showToast('Wallet connection was cancelled or failed.', err.message || 'Unknown error.', 'error');
+    if(typeof window.appendDebug === 'function'){
+      window.appendDebug('[WalletConnect] ' + (err.message || 'Unknown error'), err.stack || '');
+    }
   }
 }
 
@@ -1196,6 +1227,35 @@ function mockSimulateRisk(){
     simBtn.textContent = 'SIMULATE RISK EVENT';
   }, 3000);
 }
+</script>
+
+<script>
+(function(){
+  var panel = document.getElementById('debug-panel');
+  function appendDebug(msg, stack){
+    var entry = document.createElement('div');
+    entry.className = 'debug-entry';
+    var time = new Date().toLocaleTimeString();
+    var text = '[' + time + '] ' + msg;
+    if(stack) text += '\n' + stack;
+    entry.textContent = text;
+    panel.appendChild(entry);
+    panel.scrollTop = panel.scrollHeight;
+  }
+  window.appendDebug = appendDebug;
+  window.onerror = function(msg, src, line, col, err){
+    var detail = msg;
+    if(err && err.stack) detail = err.stack;
+    else if(src) detail = msg + ' at ' + src + ':' + line + ':' + col;
+    appendDebug(detail);
+  };
+  window.addEventListener('unhandledrejection', function(e){
+    var reason = e.reason;
+    if(reason && reason.stack) appendDebug(reason.stack);
+    else if(reason && reason.message) appendDebug(reason.message);
+    else appendDebug(String(reason));
+  });
+})();
 </script>
 
 </body>
