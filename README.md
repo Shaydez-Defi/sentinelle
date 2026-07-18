@@ -1,137 +1,71 @@
-## Monad-flavored Foundry
+# Sentinelle
 
-> [!NOTE]
-> In this Foundry template, the default chain is `monadTestnet`. If you wish to change it, change the network in `foundry.toml`
+Same-block liquidation protection for lending on Monad.
 
-<h4 align="center">
-  <a href="https://docs.monad.xyz">Monad Documentation</a> | <a href="https://book.getfoundry.sh/">Foundry Documentation</a> |
-   <a href="https://github.com/monad-developers/foundry-monad/issues">Report Issue</a>
-</h4>
+## Problem
 
+DeFi lending positions get liquidated when nobody is watching. A market moves while you sleep, work, or lose signal, and the protocol seizes your collateral at a discount as a penalty on top of the debt you already owed. Aave deployed on Monad on July 2 and pulled in $100M in deposits within 48 hours. That capital needs monitoring the moment real borrow demand catches up to it.
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Existing automation tools on other chains react in minutes, because checking a position on every block is too expensive there. That gap is where liquidations happen.
 
-Foundry consists of:
+## Solution
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat, and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions, and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose Solidity REPL.
+Sentinelle is a self-deleveraging vault. Deposit MON, borrow mUSDC against it, and a permissionless keeper function watches your health factor every block. If it drops below a safe threshold, the vault sells a slice of your own collateral to repay debt automatically. No idle reserve required. No black box: every action is logged on-chain with the health factor before, the trigger, and the health factor after.
 
-## Documentation
+Monad's sub-second blocks and low fees make block-level checking economically viable, which is what makes same-block reaction possible here.
 
-https://book.getfoundry.sh/
+## How it works
 
-## Usage
+1. Deposit MON as collateral, borrow mUSDC against it up to 150% collateralization.
+2. A keeper (or anyone, since selfRepay is permissionless) calls selfRepay when health factor drops below 130%.
+3. The vault sells a fixed slice of collateral through an internal AMM, repays a portion of the debt, and emits an event recording the exact before and after health factor.
+4. The position stays open. Only the risk gets reduced.
 
-### Build
+## Architecture
 
-```shell
+Three contracts, Solidity ^0.8.19, built with Foundry.
+
+- src/mUSDC.sol - mock USDC-style ERC20, 6 decimals, owner-gated minting for the vault, public faucet with a 1-hour cooldown for testing.
+- src/MiniSwap.sol - a minimal constant-product AMM pairing MON and mUSDC, seeded with owner liquidity, used internally by the vault to convert collateral into repayment funds. Not a public liquidity venue.
+- src/VaultManager.sol - the core contract. Tracks collateral and debt per user, computes health factor, and exposes deposit, borrow, repay, withdraw, and selfRepay.
+
+## Deployed contracts
+
+Monad Testnet, chain ID 10143. All verified on Sourcify with an exact match.
+
+- VaultManager: 0x1EFE7CfC378480164E21155dc76E9c9325f7C825
+- mUSDC: 0xBa2328AA31007Ef5D963Ba0659F48eCF204a7B23
+- MiniSwap: 0xf634A2983741Efa1cea74d155284264b6389716b
+
+## Key parameters
+
+- Minimum collateral ratio to borrow: 150%
+- Self repay trigger threshold: below 130% health factor
+- Amount repaid per trigger: 30% of outstanding debt
+- Slippage tolerance on internal swaps: 5%
+
+## Local setup
+
+git clone https://github.com/Shaydez-Defi/sentinelle.git
+cd sentinelle
+forge install
 forge build
-```
+forge test -vv
 
-### Test
+Deploy with your own funded testnet wallet:
 
-```shell
-forge test
-```
-
-### Format
-
-```shell
-forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-forge snapshot
-```
-
-### Anvil
-
-```shell
-anvil
-```
-
-### Deploy to Monad Testnet
-
-First, you need to create a keystore file. Do not forget to remember the password! You will need it to deploy your contract.
-
-```shell
-cast wallet import monad-deployer --private-key $(cast wallet new | grep 'Private key:' | awk '{print $3}')
-```
-
-After creating the keystore, you can read its address using:
-
-```shell
-cast wallet address --account monad-deployer
-```
-
-The command above will create a keystore file named `monad-deployer` in the `~/.foundry/keystores` directory.
-
-Then, you can deploy your contract to the Monad Testnet using the keystore file you created.
-
-```shell
-forge create src/Counter.sol:Counter --account monad-deployer --broadcast
-```
-
-### Verify Contract
-
-```shell
-forge verify-contract \
-  <contract_address> \
-  src/Counter.sol:Counter \
-  --chain 10143 \
-  --verifier sourcify \
-  --verifier-url https://sourcify-api-monad.blockvision.org
-```
-
-### Cast
-[Cast reference](https://book.getfoundry.sh/cast/)
-```shell
-cast <subcommand>
-```
-
-### Help
-
-```shell
-forge --help
-anvil --help
-cast --help
-```
+forge script script/Deploy.s.sol --rpc-url https://testnet-rpc.monad.xyz --account your-keystore --broadcast
 
 
-## FAQ
+## Frontend
 
-### Error: `Error: server returned an error response: error code -32603: Signer had insufficient balance`
+Single page app, plain HTML, CSS, and JavaScript, wired to the live contracts above through ethers.js. Hosted on GitHub Pages at the repo's live URL. Includes a demo mode with a simulated risk event for judging without needing a funded wallet, separate from the real on-chain flow used when a wallet is connected.
 
-This error happens when you don't have enough balance to deploy your contract. You can check your balance with the following command:
+## Test coverage
 
-```shell
-cast wallet address --account monad-deployer
-```
+Five tests in test/VaultManager.t.sol, covering deposit and borrow, reverts on undercollateralized borrow, selfRepay recovering health factor, selfRepay reverting when the position is already safe, and withdraw reverting when it would leave a position unsafe.
 
-### I have constructor arguments, how do I deploy my contract?
+## What is not built yet
 
-```shell
-forge create \
-  src/Counter.sol:Counter \
-  --account monad-deployer \
-  --broadcast \
-  --constructor-args <constructor_arguments>
-```
-
-### I have constructor arguments, how do I verify my contract?
-
-```shell
-forge verify-contract \
-  <contract_address> \
-  src/Counter.sol:Counter \
-  --chain 10143 \
-  --verifier sourcify \
-  --verifier-url https://sourcify-api-monad.blockvision.org \
-  --constructor-args <abi_encoded_constructor_arguments>
-```
-
-Please refer to the [Foundry Book](https://book.getfoundry.sh/) for more information.
+- No real price oracle. monPriceUSD is owner-set, used here for demo purposes and to allow triggering selfRepay predictably during judging. A production version would use a real feed.- No WalletConnect. Desktop wallet connection works through an injected provider. Mobile users need to open the app inside their wallet's built-in browser for now.
+- MiniSwap is a self-contained internal AMM, not routed through Monad's real DEX liquidity. This was a deliberate scope cut to avoid depending on external testnet liquidity during a five-day build.
