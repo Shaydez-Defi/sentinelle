@@ -685,6 +685,108 @@ h1.mid{
   display:block;
 }
 
+/* Borrow amount modal */
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.65);
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+  z-index:900;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.25s ease;
+}
+.modal-overlay.visible{
+  opacity:1;
+  pointer-events:auto;
+}
+.modal-box{
+  background:
+    radial-gradient(ellipse at 30% 0%, rgba(110,37,69,0.3), transparent 70%),
+    rgba(24,29,36,0.85);
+  -webkit-backdrop-filter:blur(18px) saturate(160%);
+  backdrop-filter:blur(18px) saturate(160%);
+  border:1px solid rgba(231,222,230,0.10);
+  border-radius:16px;
+  padding:28px 24px 22px;
+  width:90%;
+  max-width:360px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 8px 32px rgba(0,0,0,0.35);
+  transform:translateY(12px) scale(0.97);
+  transition:transform 0.25s ease;
+}
+.modal-overlay.visible .modal-box{
+  transform:translateY(0) scale(1);
+}
+.modal-label{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;
+  letter-spacing:0.15em;
+  color:var(--muted);
+  margin-bottom:10px;
+}
+.modal-title{
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px;
+  letter-spacing:0.06em;
+  color:var(--bone);
+  margin-bottom:18px;
+}
+.modal-input{
+  width:100%;
+  box-sizing:border-box;
+  font-family:'JetBrains Mono',monospace;
+  font-size:16px;
+  color:var(--bone);
+  background:rgba(0,0,0,0.3);
+  border:1px solid rgba(231,222,230,0.12);
+  border-radius:10px;
+  padding:14px 16px;
+  outline:none;
+  transition:border-color 0.2s ease;
+}
+.modal-input:focus{
+  border-color:var(--wine-bright);
+}
+.modal-input::placeholder{
+  color:var(--muted);
+  opacity:0.6;
+}
+.modal-actions{
+  display:flex;
+  gap:10px;
+  margin-top:20px;
+}
+.modal-btn{
+  flex:1;
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  letter-spacing:0.12em;
+  color:var(--bone);
+  background:transparent;
+  border:1px solid rgba(231,222,230,0.12);
+  padding:14px 0;
+  cursor:pointer;
+  border-radius:10px;
+  transition:all 0.2s ease;
+}
+.modal-btn.confirm{
+  background:var(--wine);
+  border-color:var(--wine);
+}
+.modal-btn:hover{
+  border-color:var(--wine-bright);
+}
+.modal-btn.confirm:hover{
+  background:var(--wine-bright);
+}
+
 #debug-panel {
   position: fixed;
   bottom: 0;
@@ -736,6 +838,18 @@ h1.mid{
 </script>
 </head>
 <body>
+
+<div class="modal-overlay" id="borrowModal" onclick="if(event.target===this)closeBorrowModal()">
+  <div class="modal-box">
+    <div class="modal-label">BORROW</div>
+    <div class="modal-title">Amount of mUSDC to borrow</div>
+    <input class="modal-input" id="borrowAmountInput" type="number" min="0" step="any" placeholder="0.00" onkeydown="if(event.key==='Enter')confirmBorrow();if(event.key==='Escape')closeBorrowModal();">
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeBorrowModal()">Cancel</button>
+      <button class="modal-btn confirm" onclick="confirmBorrow()">Confirm</button>
+    </div>
+  </div>
+</div>
 
 <div id="debug-panel"></div>
 
@@ -1121,8 +1235,28 @@ async function doDeposit(){
 
 async function doBorrow(){
   if(!vaultWrite){ showToast('Wallet Required', 'Connect a real wallet first. This action is not available in demo mode.', 'error'); return; }
-  const amount = prompt('Amount of mUSDC to borrow:');
-  if(!amount || isNaN(amount) || Number(amount) <= 0) return;
+  openBorrowModal();
+}
+
+function openBorrowModal(){
+  var modal = document.getElementById('borrowModal');
+  var input = document.getElementById('borrowAmountInput');
+  input.value = '';
+  modal.classList.add('visible');
+  setTimeout(function(){ input.focus(); }, 100);
+}
+
+function closeBorrowModal(){
+  document.getElementById('borrowModal').classList.remove('visible');
+}
+
+async function confirmBorrow(){
+  var amount = document.getElementById('borrowAmountInput').value;
+  if(!amount || isNaN(amount) || Number(amount) <= 0){
+    showToast('Invalid Amount', 'Please enter a valid mUSDC amount.', 'error');
+    return;
+  }
+  closeBorrowModal();
   try{
     const tx = await vaultWrite.borrow(ethers.parseUnits(amount, 6));
     await tx.wait();
