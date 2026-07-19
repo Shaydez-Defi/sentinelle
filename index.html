@@ -1258,7 +1258,6 @@ async function runDashboardIntro(isLive){
         statusEl.textContent = debtUSDC === 0 ? 'NO DEBT' : 'SAFE';
       }
 
-      loadHistoryFromChain(userAddress);
     } catch(err){
       console.error('Failed to load live position:', err);
       showToast('Live Data Error', err.shortMessage || err.message || 'Failed to load position.', 'error');
