@@ -2,6 +2,8 @@
 
 Same-block liquidation protection for lending on Monad.
 
+Live demo: https://sentinelle-tau.vercel.app
+
 ## Problem
 
 DeFi lending positions get liquidated when nobody is watching. A market moves while you sleep, work, or lose signal, and the protocol seizes your collateral at a discount as a penalty on top of the debt you already owed. Aave deployed on Monad on July 2 and pulled in $100M in deposits within 48 hours. That capital needs monitoring the moment real borrow demand catches up to it.
@@ -59,13 +61,24 @@ forge script script/Deploy.s.sol --rpc-url https://testnet-rpc.monad.xyz --accou
 
 ## Frontend
 
-Single page app, plain HTML, CSS, and JavaScript, wired to the live contracts above through ethers.js. Hosted on GitHub Pages at the repo's live URL. Includes a demo mode with a simulated risk event for judging without needing a funded wallet, separate from the real on-chain flow used when a wallet is connected.
+Single page app, plain HTML, CSS, and JavaScript, wired to the live contracts above through ethers.js. Hosted on Vercel at https://sentinelle-tau.vercel.app. Includes a demo mode with a simulated risk event for judging without needing a funded wallet, separate from the real on-chain flow used when a wallet is connected.
 
 ## Test coverage
 
 Five tests in test/VaultManager.t.sol, covering deposit and borrow, reverts on undercollateralized borrow, selfRepay recovering health factor, selfRepay reverting when the position is already safe, and withdraw reverting when it would leave a position unsafe.
 
+## Verification
+
+To verify the selfRepay and health factor behavior described above, run `forge test -vv`. All five tests exercise the exact scenarios a judge would want to see: deposit, borrow, safe-position revert, undercollateralized-borrow revert, and health factor recovery after selfRepay.
+
+On-chain verification is available through Sourcify for each contract:
+
+- VaultManager: https://repo.sourcify.dev/contracts/full_match/10143/0x1EFE7CfC378480164E21155dc76E9c9325f7C825/
+- mUSDC: https://repo.sourcify.dev/contracts/full_match/10143/0xBa2328AA31007Ef5D963Ba0659F48eCF204a7B23/
+- MiniSwap: https://repo.sourcify.dev/contracts/full_match/10143/0xf634A2983741Efa1cea74d155284264b6389716b/
+
 ## What is not built yet
 
-- No real price oracle. monPriceUSD is owner-set, used here for demo purposes and to allow triggering selfRepay predictably during judging. A production version would use a real feed.- No WalletConnect. Desktop wallet connection works through an injected provider. Mobile users need to open the app inside their wallet's built-in browser for now.
+- No real price oracle. monPriceUSD is owner-set, used here for demo purposes and to allow triggering selfRepay predictably during judging. A production version would use a real feed.
+- No WalletConnect. Desktop wallet connection works through an injected provider. Mobile users need to open the app inside their wallet's built-in browser for now.
 - MiniSwap is a self-contained internal AMM, not routed through Monad's real DEX liquidity. This was a deliberate scope cut to avoid depending on external testnet liquidity during a five-day build.
