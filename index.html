@@ -1153,6 +1153,13 @@ async function connectWallet(){
   }
 }
 
+function normalizeHealthScore(realHF){
+  if(realHF <= 100) return 0;
+  if(realHF <= 150) return realHF - 100;
+  if(realHF <= 300) return 50 + ((realHF - 150) / 150) * 50;
+  return 100;
+}
+
 function countUp(el, target, decimals, suffix, duration){
   const start = performance.now();
   function tick(now){
@@ -1167,7 +1174,7 @@ function countUp(el, target, decimals, suffix, duration){
 }
 
 let state = {
-  health: 94,
+  health: 255,
   collateral: 2.40,
   debt: 1200,
   block: 4912003,
@@ -1213,11 +1220,8 @@ async function runDashboardIntro(isLive){
       state.collateral = collateralMON;
       state.debt = debtUSDC;
 
-      if(hfDisplay > 999){
-        scoreEl.textContent = '999+';
-      } else {
-        countUp(scoreEl, hfDisplay, 0, '', 900);
-      }
+      const displayScore = (debtUSDC === 0) ? 100 : normalizeHealthScore(hfDisplay);
+      countUp(scoreEl, displayScore, 0, '', 900);
       countUp(collateralEl, collateralMON, 2, ' MON', 900);
       countUp(debtEl, debtUSDC, 0, ' USDC', 900);
       ltvEl.textContent = (debtUSDC > 0 ? ltv.toFixed(0) : '0') + '% LTV';
@@ -1243,7 +1247,9 @@ async function runDashboardIntro(isLive){
 
   if(myRequestId !== dashboardRequestId) return;
 
-  countUp(scoreEl, 94, 0, '', 900);
+  const demoHF = state.health;
+  const demoScore = (state.debt === 0) ? 100 : normalizeHealthScore(demoHF);
+  countUp(scoreEl, demoScore, 0, '', 900);
   countUp(collateralEl, 2.40, 2, ' MON', 900);
   countUp(debtEl, 1200, 0, ' USDC', 900);
 }
@@ -1473,8 +1479,8 @@ function mockSimulateRisk(){
   simBtn.disabled = true;
   simBtn.textContent = 'SIMULATING...';
 
-  const dropTo = Math.floor(Math.random() * 20) + 32;
-  countUp(scoreEl, dropTo, 0, '', 700);
+  const dropTo = Math.floor(Math.random() * 20) + 110;
+  countUp(scoreEl, normalizeHealthScore(dropTo), 0, '', 700);
 
   setTimeout(function(){
     statusEl.textContent = 'AT RISK';
@@ -1484,7 +1490,7 @@ function mockSimulateRisk(){
   setTimeout(function(){
     const debtRepaid = Math.floor(Math.random() * 60) + 40;
     const collateralSold = debtRepaid / state.ethPrice;
-    const recoverTo = Math.floor(Math.random() * 15) + 80;
+    const recoverTo = Math.floor(Math.random() * 40) + 220;
 
     state.debt = Math.max(state.debt - debtRepaid, 0);
     state.collateral = Math.max(state.collateral - collateralSold, 0);
@@ -1496,10 +1502,10 @@ function mockSimulateRisk(){
 
     const entry = document.createElement('div');
     entry.className = 'log-item';
-    entry.innerHTML = '<div class="log-left"><div class="log-title">Auto Repay</div><div class="log-reason">Health factor dropped to ' + dropTo + '</div><div class="log-time">' + timeStr + ' &middot; Block ' + state.block.toLocaleString() + '</div></div><div class="log-right"><div class="log-shift">' + dropTo + ' &rarr; ' + recoverTo + '</div><div class="log-status">SUCCESS</div></div>';
+    entry.innerHTML = '<div class="log-left"><div class="log-title">Auto Repay</div><div class="log-reason">Health factor dropped to ' + normalizeHealthScore(dropTo) + '</div><div class="log-time">' + timeStr + ' &middot; Block ' + state.block.toLocaleString() + '</div></div><div class="log-right"><div class="log-shift">' + normalizeHealthScore(dropTo) + ' &rarr; ' + normalizeHealthScore(recoverTo) + '</div><div class="log-status">SUCCESS</div></div>';
     logWrap.insertBefore(entry, logWrap.firstChild);
 
-    countUp(scoreEl, state.health, 0, '', 900);
+    countUp(scoreEl, normalizeHealthScore(state.health), 0, '', 900);
     countUp(collateralEl, state.collateral, 2, ' MON', 900);
     countUp(debtEl, state.debt, 0, ' USDC', 900);
     ltvEl.textContent = newLtv + '% LTV';
