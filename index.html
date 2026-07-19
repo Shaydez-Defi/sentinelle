@@ -866,6 +866,30 @@ h1.mid{
   </div>
 </div>
 
+<div class="modal-overlay" id="repayModal" onclick="if(event.target===this)closeRepayModal()">
+  <div class="modal-box">
+    <div class="modal-label">REPAY</div>
+    <div class="modal-title">Amount of USDC to repay</div>
+    <input class="modal-input" id="repayAmountInput" type="number" min="0" step="any" placeholder="0.00" onkeydown="if(event.key==='Enter')confirmRepay();if(event.key==='Escape')closeRepayModal();">
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeRepayModal()">Cancel</button>
+      <button class="modal-btn confirm" onclick="confirmRepay()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="withdrawModal" onclick="if(event.target===this)closeWithdrawModal()">
+  <div class="modal-box">
+    <div class="modal-label">WITHDRAW</div>
+    <div class="modal-title">Amount of MON to withdraw</div>
+    <input class="modal-input" id="withdrawAmountInput" type="number" min="0" step="any" placeholder="0.00" onkeydown="if(event.key==='Enter')confirmWithdraw();if(event.key==='Escape')closeWithdrawModal();">
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeWithdrawModal()">Cancel</button>
+      <button class="modal-btn confirm" onclick="confirmWithdraw()">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <div class="app">
 
   <!-- HERO -->
@@ -1281,36 +1305,12 @@ async function doBorrow(){
 
 async function doRepay(){
   if(!vaultWrite){ showToast('Wallet Required', 'Connect a real wallet first. This action is not available in demo mode.', 'error'); return; }
-  var amount = prompt('Amount of mUSDC to repay:');
-  if(!amount || isNaN(amount) || Number(amount) <= 0) return;
-  try{
-    const tx = await vaultWrite.repay(ethers.parseUnits(amount, 6));
-    await tx.wait();
-    const timeStr = new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
-    await addLogEntry('Repay', 'Repaid ' + amount + ' USDC', timeStr + ' &middot; Tx ' + tx.hash.slice(0,10) + '...');
-    showToast('Repay Confirmed', amount + ' USDC repaid successfully.', 'success');
-    runDashboardIntro(true);
-  } catch(err){
-    console.error(err);
-    showToast('Repay Failed', err.shortMessage || err.message || 'Unknown error.', 'error');
-  }
+  openRepayModal();
 }
 
 async function doWithdraw(){
   if(!vaultWrite){ showToast('Wallet Required', 'Connect a real wallet first. This action is not available in demo mode.', 'error'); return; }
-  var amount = prompt('Amount of MON to withdraw:');
-  if(!amount || isNaN(amount) || Number(amount) <= 0) return;
-  try{
-    const tx = await vaultWrite.withdraw(ethers.parseEther(amount));
-    await tx.wait();
-    const timeStr = new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
-    await addLogEntry('Withdraw', 'Withdrew ' + amount + ' MON', timeStr + ' &middot; Tx ' + tx.hash.slice(0,10) + '...');
-    showToast('Withdraw Confirmed', amount + ' MON withdrawn successfully.', 'success');
-    runDashboardIntro(true);
-  } catch(err){
-    console.error(err);
-    showToast('Withdraw Failed', err.shortMessage || err.message || 'Unknown error.', 'error');
-  }
+  openWithdrawModal();
 }
 
 function openBorrowModal(){
@@ -1342,6 +1342,70 @@ async function confirmBorrow(){
   } catch(err){
     console.error(err);
     showToast('Borrow Failed', err.shortMessage || err.message || 'Unknown error.', 'error');
+  }
+}
+
+function openRepayModal(){
+  var modal = document.getElementById('repayModal');
+  var input = document.getElementById('repayAmountInput');
+  input.value = '';
+  modal.classList.add('visible');
+  setTimeout(function(){ input.focus(); }, 100);
+}
+
+function closeRepayModal(){
+  document.getElementById('repayModal').classList.remove('visible');
+}
+
+async function confirmRepay(){
+  var amount = document.getElementById('repayAmountInput').value;
+  if(!amount || isNaN(amount) || Number(amount) <= 0){
+    showToast('Invalid Amount', 'Please enter a valid USDC amount.', 'error');
+    return;
+  }
+  closeRepayModal();
+  try{
+    const tx = await vaultWrite.repay(ethers.parseUnits(amount, 6));
+    await tx.wait();
+    const timeStr = new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+    await addLogEntry('Repay', 'Repaid ' + amount + ' USDC', timeStr + ' &middot; Tx ' + tx.hash.slice(0,10) + '...');
+    showToast('Repay Confirmed', amount + ' USDC repaid successfully.', 'success');
+    runDashboardIntro(true);
+  } catch(err){
+    console.error(err);
+    showToast('Repay Failed', err.shortMessage || err.message || 'Unknown error.', 'error');
+  }
+}
+
+function openWithdrawModal(){
+  var modal = document.getElementById('withdrawModal');
+  var input = document.getElementById('withdrawAmountInput');
+  input.value = '';
+  modal.classList.add('visible');
+  setTimeout(function(){ input.focus(); }, 100);
+}
+
+function closeWithdrawModal(){
+  document.getElementById('withdrawModal').classList.remove('visible');
+}
+
+async function confirmWithdraw(){
+  var amount = document.getElementById('withdrawAmountInput').value;
+  if(!amount || isNaN(amount) || Number(amount) <= 0){
+    showToast('Invalid Amount', 'Please enter a valid MON amount.', 'error');
+    return;
+  }
+  closeWithdrawModal();
+  try{
+    const tx = await vaultWrite.withdraw(ethers.parseEther(amount));
+    await tx.wait();
+    const timeStr = new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+    await addLogEntry('Withdraw', 'Withdrew ' + amount + ' MON', timeStr + ' &middot; Tx ' + tx.hash.slice(0,10) + '...');
+    showToast('Withdraw Confirmed', amount + ' MON withdrawn successfully.', 'success');
+    runDashboardIntro(true);
+  } catch(err){
+    console.error(err);
+    showToast('Withdraw Failed', err.shortMessage || err.message || 'Unknown error.', 'error');
   }
 }
 
