@@ -1542,25 +1542,35 @@ function mockSimulateRisk(){
 
 async function loadHistoryFromChain(addr){
   const logWrap = document.getElementById('logWrap');
-  const fromBlock = 45532538;
+  const CHUNK_SIZE = 500;
+  const DEPLOY_BLOCK = 45532538;
   try{
-    const filters = [
-      vaultRead.filters.Deposited(addr),
-      vaultRead.filters.Borrowed(addr),
-      vaultRead.filters.Repaid(addr),
-      vaultRead.filters.Withdrawn(addr),
-      vaultRead.filters.AutoRepaid(addr)
-    ];
-    const results = await Promise.all(filters.map(f => vaultRead.queryFilter(f, fromBlock)));
-    let all = [];
-    results.forEach(r => all = all.concat(r));
-    all.sort((a,b) => b.blockNumber - a.blockNumber);
-    if(all.length === 0){
+    const currentBlock = await provider.getBlockNumber();
+    let allEvents = [];
+    let chunkEnd = currentBlock;
+
+    while(chunkEnd > DEPLOY_BLOCK && allEvents.length < 50){
+      const chunkStart = Math.max(chunkEnd - CHUNK_SIZE, DEPLOY_BLOCK);
+
+      const [deposits, borrows, repays, withdrawals, autoRepays] = await Promise.all([
+        vaultRead.queryFilter(vaultRead.filters.Deposited(addr), chunkStart, chunkEnd),
+        vaultRead.queryFilter(vaultRead.filters.Borrowed(addr), chunkStart, chunkEnd),
+        vaultRead.queryFilter(vaultRead.filters.Repaid(addr), chunkStart, chunkEnd),
+        vaultRead.queryFilter(vaultRead.filters.Withdrawn(addr), chunkStart, chunkEnd),
+        vaultRead.queryFilter(vaultRead.filters.AutoRepaid(addr), chunkStart, chunkEnd)
+      ]);
+
+      allEvents = allEvents.concat(deposits, borrows, repays, withdrawals, autoRepays);
+      chunkEnd = chunkStart - 1;
+    }
+
+    allEvents.sort((a,b) => b.blockNumber - a.blockNumber);
+    if(allEvents.length === 0){
       logWrap.innerHTML = '<div class="log-item"><div class="log-left"><div class="log-title">No activity yet</div><div class="log-reason">Real transactions will appear here once you deposit, borrow, repay, or withdraw</div></div></div>';
       return;
     }
     let html = '';
-    all.forEach(ev => {
+    allEvents.forEach(ev => {
       const name = ev.fragment.name;
       let title, reason, rightHtml = '<div class="log-status">SUCCESS</div>';
       const args = ev.args;
