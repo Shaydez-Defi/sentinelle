@@ -1192,27 +1192,19 @@ async function runDashboardIntro(isLive){
         vaultRead.debt(userAddress),
         vaultRead.healthFactor(userAddress)
       ]);
-      console.log('RAW collateral:', rawCollateral.toString());
-      console.log('RAW debt:', rawDebt.toString());
-      console.log('RAW healthFactor:', rawHF.toString());
-      console.log('isMaxHF check:', rawHF > 1000000000n);
 
       const collateralMON = parseFloat(ethers.formatEther(rawCollateral));
       const debtUSDC = parseFloat(ethers.formatUnits(rawDebt, 6));
-      console.log('rawDebt:', rawDebt.toString(), 'parsed debtUSDC:', debtUSDC);
 
       let collateralUSD = 0;
       try{
         const rawMonPrice = await vaultRead.monPriceUSD();
         const monPriceUSD = parseFloat(ethers.formatUnits(rawMonPrice, 6));
         collateralUSD = collateralMON * monPriceUSD;
-      } catch(e){
-        console.warn('monPriceUSD fetch failed:', e);
-      }
-      const debtDisplayRounded = Math.round(debtUSDC);
-      const isMaxHF = rawHF > 1000000000n || debtDisplayRounded === 0;
-      const hfDisplay = isMaxHF ? 100 : Number(rawHF);
-      console.log('computed hfDisplay:', hfDisplay);
+      } catch(e){}
+
+      const isNoDebt = rawHF === ethers.MaxUint256;
+      const hfDisplay = isNoDebt ? 100 : Number(rawHF);
       const ltv = debtUSDC > 0 && collateralMON > 0 ? ((debtUSDC / (collateralMON * (state.ethPrice))) * 100) : 0;
 
       if(myRequestId !== dashboardRequestId) return;
@@ -1221,7 +1213,11 @@ async function runDashboardIntro(isLive){
       state.collateral = collateralMON;
       state.debt = debtUSDC;
 
-      countUp(scoreEl, hfDisplay, 0, '', 900);
+      if(hfDisplay > 999){
+        scoreEl.textContent = '999+';
+      } else {
+        countUp(scoreEl, hfDisplay, 0, '', 900);
+      }
       countUp(collateralEl, collateralMON, 2, ' MON', 900);
       countUp(debtEl, debtUSDC, 0, ' USDC', 900);
       ltvEl.textContent = (debtUSDC > 0 ? ltv.toFixed(0) : '0') + '% LTV';
