@@ -1157,18 +1157,18 @@ async function connectWallet(){
   try{
     if(!window.ethereum){
       showToast('No Wallet Found', 'Install MetaMask or another wallet, or use "View demo instead" below.', 'error');
-      btn.textContent = 'CONNECT WALLET';
-      btn.classList.remove('loading');
       return;
     }
     await window.ethereum.request({ method: 'eth_requestAccounts' });
     await ensureMonadNetwork();
+    sessionStorage.removeItem('manuallyDisconnected');
     await finalizeConnection(window.ethereum);
   } catch(err){
     console.error(err);
+    showToast('Wallet connection was cancelled or failed.', err.message || 'Unknown error.', 'error');
+  } finally {
     btn.textContent = 'CONNECT WALLET';
     btn.classList.remove('loading');
-    showToast('Wallet connection was cancelled or failed.', err.message || 'Unknown error.', 'error');
   }
 }
 
@@ -1599,11 +1599,13 @@ function disconnectWallet(){
   vaultWrite = null;
   musdcWrite = null;
   isOwner = false;
+  sessionStorage.setItem('manuallyDisconnected', 'true');
   goTo('hero');
 }
 
 (async function autoReconnect(){
   try{
+    if(sessionStorage.getItem('manuallyDisconnected') === 'true') return;
     if(!window.ethereum) return;
     const accounts = await window.ethereum.request({ method: 'eth_accounts' });
     if(!accounts || accounts.length === 0) return;
