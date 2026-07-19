@@ -975,7 +975,7 @@ h1.mid{
       <div class="col-right">
       <div class="section-label">POSITION</div>
       <div class="position-grid">
-        <div class="position-cell glass"><div class="cell-label">COLLATERAL</div><div class="cell-value" id="collateralVal">0.00 MON</div><div class="cell-sub" id="collateralUsd">~4,820 USDC</div></div>
+        <div class="position-cell glass"><div class="cell-label">COLLATERAL</div><div class="cell-value" id="collateralVal">0.00 MON</div><div class="cell-sub" id="collateralUsdVal">~0.00 USDC</div></div>
         <div class="position-cell glass"><div class="cell-label">DEBT</div><div class="cell-value" id="debtVal">0 USDC</div><div class="cell-sub" id="ltvVal">25% LTV</div></div>
       </div>
 
@@ -1054,7 +1054,8 @@ const VAULT_ABI = [
 
 const MUSDC_ABI = [
   "function faucet() external",
-  "function balanceOf(address account) view returns (uint256)"
+  "function balanceOf(address account) view returns (uint256)",
+  "function approve(address spender, uint256 amount) external returns (bool)"
 ];
 
 let provider, signer, userAddress, vaultRead, vaultWrite, musdcWrite, isOwner = false;
@@ -1090,21 +1091,25 @@ function goTo(name, demo, live){
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
   window.scrollTo(0,0);
+  var simRow = document.querySelector('.simulate-row');
   if(name === 'dashboard'){
     const chip = document.getElementById('walletChip');
     const chipText = document.getElementById('chipText');
     if(demo){
       chip.classList.add('demo');
       chipText.innerHTML = '<span class="demo-tag">DEMO</span><span class="sep"> &middot; </span>0x4F2...9B3';
+      if(simRow) simRow.style.display = 'flex';
       runDashboardIntro(false);
     } else if(live && userAddress){
       chip.classList.remove('demo');
       const short = userAddress.slice(0,6) + '...' + userAddress.slice(-4);
       chipText.textContent = short;
+      if(simRow) simRow.style.display = 'none';
       runDashboardIntro(true);
     } else {
       chip.classList.remove('demo');
       chipText.textContent = '0x4F2...9B3';
+      if(simRow) simRow.style.display = 'flex';
       runDashboardIntro(false);
     }
   }
@@ -1188,16 +1193,18 @@ async function runDashboardIntro(isLive){
         vaultRead.healthFactor(userAddress)
       ]);
 
-      let collateralUSD = 0;
-      try{
-        const rawCollateralUSD = await vaultRead.collateralValueUSD(userAddress);
-        collateralUSD = parseFloat(ethers.formatUnits(rawCollateralUSD, 6));
-      } catch(e){
-        console.warn('collateralValueUSD fetch failed:', e);
-      }
-
       const collateralMON = parseFloat(ethers.formatEther(rawCollateral));
       const debtUSDC = parseFloat(ethers.formatUnits(rawDebt, 6));
+      console.log('rawDebt:', rawDebt.toString(), 'parsed debtUSDC:', debtUSDC);
+
+      let collateralUSD = 0;
+      try{
+        const rawMonPrice = await vaultRead.monPriceUSD();
+        const monPriceUSD = parseFloat(ethers.formatUnits(rawMonPrice, 6));
+        collateralUSD = collateralMON * monPriceUSD;
+      } catch(e){
+        console.warn('monPriceUSD fetch failed:', e);
+      }
       const debtDisplayRounded = Math.round(debtUSDC);
       const isMaxHF = rawHF > 1000000000n || debtDisplayRounded === 0;
       const hfDisplay = isMaxHF ? 100 : Number(rawHF);
@@ -1214,9 +1221,9 @@ async function runDashboardIntro(isLive){
       countUp(debtEl, debtUSDC, 0, ' USDC', 900);
       ltvEl.textContent = (debtUSDC > 0 ? ltv.toFixed(0) : '0') + '% LTV';
 
-      const collateralUsdEl = document.getElementById('collateralUsd');
+      const collateralUsdEl = document.getElementById('collateralUsdVal');
       if(collateralUsdEl){
-        collateralUsdEl.textContent = collateralUSD > 0 ? '~' + Math.round(collateralUSD).toLocaleString() + ' USDC' : '~0 USDC';
+        collateralUsdEl.textContent = '~' + collateralUSD.toFixed(2) + ' USDC';
       }
 
       statusEl.classList.remove('at-risk');
@@ -1226,8 +1233,6 @@ async function runDashboardIntro(isLive){
       } else {
         statusEl.textContent = debtUSDC === 0 ? 'NO DEBT' : 'SAFE';
       }
-
-      document.getElementById('logWrap').innerHTML = '<div class="log-item"><div class="log-left"><div class="log-title">No activity yet</div><div class="log-reason">Deposit MON to open a position</div></div></div>';
     } catch(err){
       console.error('Failed to load live position:', err);
       showToast('Live Data Error', err.shortMessage || err.message || 'Failed to load position.', 'error');
@@ -1338,7 +1343,7 @@ async function confirmBorrow(){
     const timeStr = new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
     await addLogEntry('Borrow', 'Borrowed ' + amount + ' USDC', timeStr + ' &middot; Tx ' + tx.hash.slice(0,10) + '...');
     showToast('Borrow Confirmed', amount + ' USDC borrowed successfully.', 'success');
-    runDashboardIntro(true);
+    await runDashboardIntro(true);
   } catch(err){
     console.error(err);
     showToast('Borrow Failed', err.shortMessage || err.message || 'Unknown error.', 'error');
@@ -1365,12 +1370,16 @@ async function confirmRepay(){
   }
   closeRepayModal();
   try{
-    const tx = await vaultWrite.repay(ethers.parseUnits(amount, 6));
+    const parsedAmount = ethers.parseUnits(amount, 6);
+    showToast('Approving', 'Approving mUSDC spend, confirm in your wallet', '');
+    const approveTx = await musdcWrite.approve(VAULT_ADDRESS, parsedAmount);
+    await approveTx.wait();
+    const tx = await vaultWrite.repay(parsedAmount);
     await tx.wait();
     const timeStr = new Date().toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
     await addLogEntry('Repay', 'Repaid ' + amount + ' USDC', timeStr + ' &middot; Tx ' + tx.hash.slice(0,10) + '...');
     showToast('Repay Confirmed', amount + ' USDC repaid successfully.', 'success');
-    runDashboardIntro(true);
+    await runDashboardIntro(true);
   } catch(err){
     console.error(err);
     showToast('Repay Failed', err.shortMessage || err.message || 'Unknown error.', 'error');
@@ -1446,10 +1455,9 @@ async function liveSimulateRisk(){
 
 function simulateRisk(){
   if(isOwner && vaultWrite && userAddress){
-    liveSimulateRisk();
-  } else {
-    mockSimulateRisk();
+    return;
   }
+  mockSimulateRisk();
 }
 
 function mockSimulateRisk(){
