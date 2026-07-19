@@ -32,10 +32,10 @@ html,body{
   overflow-x:hidden;
 }
 
-/* Dashboard page scrollbar - styled */
+/* Dashboard page scrollbar - subtle */
 html::-webkit-scrollbar,
 body::-webkit-scrollbar{
-  width:8px;
+  width:3px;
 }
 html::-webkit-scrollbar-track,
 body::-webkit-scrollbar-track{
@@ -43,28 +43,41 @@ body::-webkit-scrollbar-track{
 }
 html::-webkit-scrollbar-thumb,
 body::-webkit-scrollbar-thumb{
-  background:var(--wine-bright);
-  border-radius:4px;
+  background:rgba(168,59,99,0.18);
+  border-radius:3px;
+}
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover{
+  background:rgba(168,59,99,0.4);
 }
 html{
   scrollbar-width:thin;
-  scrollbar-color:var(--wine-bright) transparent;
+  scrollbar-color:rgba(168,59,99,0.18) transparent;
+}
+html:hover{
+  scrollbar-color:rgba(168,59,99,0.4) transparent;
 }
 
-/* Execution Log scrollbar - styled */
+/* Execution Log scrollbar - subtle */
 .log-wrap::-webkit-scrollbar{
-  width:6px;
+  width:3px;
 }
 .log-wrap::-webkit-scrollbar-track{
   background:transparent;
 }
 .log-wrap::-webkit-scrollbar-thumb{
-  background:var(--wine-bright);
+  background:rgba(168,59,99,0.18);
   border-radius:3px;
+}
+.log-wrap::-webkit-scrollbar-thumb:hover{
+  background:rgba(168,59,99,0.4);
 }
 .log-wrap{
   scrollbar-width:thin;
-  scrollbar-color:var(--wine-bright) transparent;
+  scrollbar-color:rgba(168,59,99,0.18) transparent;
+}
+.log-wrap:hover{
+  scrollbar-color:rgba(168,59,99,0.4) transparent;
 }
 
 /* Modal scrollbars - hidden */
@@ -355,6 +368,14 @@ h1.mid{
   cursor:pointer;
   text-decoration:underline;
   text-underline-offset:4px;
+}
+
+.mobile-only-help{
+  text-decoration:none !important;
+  display:none;
+}
+.mobile-only-help.visible{
+  display:block !important;
 }
 
 .footer{ text-align:center; padding:24px; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; color:var(--muted); }
@@ -944,6 +965,7 @@ h1.mid{
           <h1 class="mid">Connect your wallet to load your position</h1>
           <p class="sub">Sentinelle reads your collateral and debt directly from Monad. Nothing is shared until you connect.</p>
           <button class="connect-btn" id="connectBtn" onclick="connectWallet()">CONNECT WALLET</button>
+          <button class="skip mobile-only-help" onclick="showMobileConnectHelp()" style="display:none;margin:0 auto 10px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:var(--wine-bright);background:none;border:1px solid rgba(168,59,99,0.3);border-radius:20px;padding:9px 18px;cursor:pointer;transition:all 0.2s ease;">HOW TO CONNECT ON MOBILE</button>
           <button class="skip" onclick="goTo('dashboard', true)">View demo instead</button>
         </div>
       </div>
@@ -1149,6 +1171,11 @@ async function finalizeConnection(ethProvider){
   goTo('dashboard', false, true);
 }
 
+function isMobileDevice(){
+  return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /Macintosh/i.test(navigator.userAgent));
+}
+
 async function connectWallet(){
   const btn = document.getElementById('connectBtn');
   btn.textContent = 'CONNECTING...';
@@ -1156,7 +1183,11 @@ async function connectWallet(){
 
   try{
     if(!window.ethereum){
-      showToast('No Wallet Found', 'Install MetaMask or another wallet, or use "View demo instead" below.', 'error');
+      if(isMobileDevice()){
+        showToast('No wallet detected', 'Open this page inside your wallet app\'s built-in browser to connect (works with MetaMask, Rabby, Trust Wallet, OKX Wallet, Coinbase Wallet, or any wallet app with a built-in browser).', 'error');
+      } else {
+        showToast('No wallet detected', 'Install MetaMask, Rabby, or another browser extension wallet, or use "View demo instead" below.', 'error');
+      }
       return;
     }
     await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -1170,6 +1201,10 @@ async function connectWallet(){
     btn.textContent = 'CONNECT WALLET';
     btn.classList.remove('loading');
   }
+}
+
+function showMobileConnectHelp(){
+  showToast('How to connect on mobile', 'Open your wallet app (MetaMask, Rabby, Trust Wallet, etc.), find its built-in browser (usually a compass, globe, or "Browser" icon in the app), and enter this site\'s URL there. Then tap Connect Wallet again.', '');
 }
 
 function normalizeHealthScore(realHF){
@@ -1624,6 +1659,11 @@ function disconnectWallet(){
     console.error('Auto-reconnect failed:', err);
   }
 })();
+
+if(isMobileDevice()){
+  var mobileHelpBtn = document.querySelector('.mobile-only-help');
+  if(mobileHelpBtn) mobileHelpBtn.classList.add('visible');
+}
 </script>
 
 
