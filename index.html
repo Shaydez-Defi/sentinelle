@@ -837,56 +837,8 @@ h1.mid{
 .modal-btn.confirm:hover{
   background:var(--wine-bright);
 }
-
-#debug-panel {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-height: 40vh;
-  overflow-y: auto;
-  background: rgba(0,0,0,0.92);
-  color: #ff4444;
-  border-top: 2px solid #ff0000;
-  font-family: monospace;
-  font-size: 11px;
-  padding: 8px 12px;
-  z-index: 99999;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-#debug-panel .debug-entry {
-  border-bottom: 1px solid #333;
-  padding: 4px 0;
-}
-#debug-panel .debug-entry .debug-time {
-  color: #888;
-  margin-right: 6px;
-}
 </style>
-<!-- [TEMP DEBUG] WebSocket instrumentation for diagnosing WalletConnect relay failures -->
-<script>
-(function() {
-  const OrigWS = window.WebSocket;
-  window.WebSocket = function(url, protocols) {
-    console.log('[WS DEBUG] Attempting connection to:', url);
-    const ws = protocols ? new OrigWS(url, protocols) : new OrigWS(url);
-    ws.addEventListener('open', () => console.log('[WS DEBUG] OPEN:', url));
-    ws.addEventListener('error', (e) => console.log('[WS DEBUG] ERROR:', url, e));
-    ws.addEventListener('close', (e) => console.log('[WS DEBUG] CLOSE:', url, 'code:', e.code, 'reason:', e.reason, 'wasClean:', e.wasClean));
-    return ws;
-  };
-  window.WebSocket.prototype = OrigWS.prototype;
-})();
-</script>
-<!-- TODO: Remove Eruda before final submission - debugging only -->
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
-<script type="module">
-  import { EthereumProvider } from "https://esm.sh/@walletconnect/ethereum-provider@2.17.0";
-  window.WalletConnectEthereumProvider = EthereumProvider;
-</script>
 </head>
 <body>
 
@@ -913,8 +865,6 @@ h1.mid{
     </div>
   </div>
 </div>
-
-<div id="debug-panel"></div>
 
 <div class="app">
 
@@ -1057,8 +1007,6 @@ function showToast(title, message, type){
 const MONAD_CHAIN_ID = 10143;
 const MONAD_CHAIN_ID_HEX = '0x' + MONAD_CHAIN_ID.toString(16);
 const MONAD_RPC = 'https://testnet-rpc.monad.xyz';
-const WALLETCONNECT_PROJECT_ID = 'd451f929d40af9bf0edca03c159013d6';
-
 const VAULT_ADDRESS = '0x1EFE7CfC378480164E21155dc76E9c9325f7C825';
 const MUSDC_ADDRESS = '0xBa2328AA31007Ef5D963Ba0659F48eCF204a7B23';
 
@@ -1086,10 +1034,6 @@ const MUSDC_ABI = [
 ];
 
 let provider, signer, userAddress, vaultRead, vaultWrite, musdcWrite, isOwner = false;
-
-function isMobileDevice(){
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
 
 async function ensureMonadNetwork(){
   const chainIdHex = await window.ethereum.request({ method: 'eth_chainId' });
@@ -1163,34 +1107,20 @@ async function connectWallet(){
   btn.classList.add('loading');
 
   try{
-    if(isMobileDevice() && !window.ethereum){
-      const wcProvider = await window.WalletConnectEthereumProvider.init({
-        projectId: WALLETCONNECT_PROJECT_ID,
-        chains: [10143],
-        showQrModal: true,
-        rpcMap: { 10143: MONAD_RPC }
-      });
-      await wcProvider.connect();
-      await finalizeConnection(wcProvider);
-    } else {
-      if(!window.ethereum){
-        showToast('No Wallet Found', 'Install MetaMask or another wallet, or use "View demo instead" below.', 'error');
-        btn.textContent = 'CONNECT WALLET';
-        btn.classList.remove('loading');
-        return;
-      }
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
-      await ensureMonadNetwork();
-      await finalizeConnection(window.ethereum);
+    if(!window.ethereum){
+      showToast('No Wallet Found', 'Install MetaMask or another wallet, or use "View demo instead" below.', 'error');
+      btn.textContent = 'CONNECT WALLET';
+      btn.classList.remove('loading');
+      return;
     }
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+    await ensureMonadNetwork();
+    await finalizeConnection(window.ethereum);
   } catch(err){
     console.error(err);
     btn.textContent = 'CONNECT WALLET';
     btn.classList.remove('loading');
     showToast('Wallet connection was cancelled or failed.', err.message || 'Unknown error.', 'error');
-    if(typeof window.appendDebug === 'function'){
-      window.appendDebug('[WalletConnect] ' + (err.message || 'Unknown error'), err.stack || '');
-    }
   }
 }
 
@@ -1511,34 +1441,7 @@ function mockSimulateRisk(){
 }
 </script>
 
-<script>
-(function(){
-  var panel = document.getElementById('debug-panel');
-  function appendDebug(msg, stack){
-    var entry = document.createElement('div');
-    entry.className = 'debug-entry';
-    var time = new Date().toLocaleTimeString();
-    var text = '[' + time + '] ' + msg;
-    if(stack) text += '\n' + stack;
-    entry.textContent = text;
-    panel.appendChild(entry);
-    panel.scrollTop = panel.scrollHeight;
-  }
-  window.appendDebug = appendDebug;
-  window.onerror = function(msg, src, line, col, err){
-    var detail = msg;
-    if(err && err.stack) detail = err.stack;
-    else if(src) detail = msg + ' at ' + src + ':' + line + ':' + col;
-    appendDebug(detail);
-  };
-  window.addEventListener('unhandledrejection', function(e){
-    var reason = e.reason;
-    if(reason && reason.stack) appendDebug(reason.stack);
-    else if(reason && reason.message) appendDebug(reason.message);
-    else appendDebug(String(reason));
-  });
-})();
-</script>
+
 
 </body>
 </html>
