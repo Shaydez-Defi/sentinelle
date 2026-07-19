@@ -1542,7 +1542,7 @@ function mockSimulateRisk(){
 
 async function loadHistoryFromChain(addr){
   const logWrap = document.getElementById('logWrap');
-  const CHUNK_SIZE = 500;
+  const CHUNK_SIZE = 200;
   const DEPLOY_BLOCK = 45532538;
   try{
     const currentBlock = await provider.getBlockNumber();
