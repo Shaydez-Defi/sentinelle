@@ -996,8 +996,7 @@ h1.mid{
       <div class="section-label">EXECUTION LOG</div>
       <div class="log-wrap glass" id="logWrap">
         <div class="log-item">
-          <div class="log-left"><div class="log-title">Position Opened</div><div class="log-reason">Deposited 2.40 ETH, borrowed 1,200 USDC</div><div class="log-time">Yesterday &middot; Block 4,901,220</div></div>
-          <div class="log-right"><div class="log-status">SUCCESS</div></div>
+          <div class="log-left"><div class="log-title">No activity yet</div><div class="log-reason">Real transactions will appear here once you deposit, borrow, repay, or withdraw</div></div>
         </div>
       </div>
       </div>
@@ -1223,7 +1222,7 @@ async function runDashboardIntro(isLive){
       const displayScore = (debtUSDC === 0) ? 100 : normalizeHealthScore(hfDisplay);
       countUp(scoreEl, displayScore, 0, '', 900);
       countUp(collateralEl, collateralMON, 2, ' MON', 900);
-      countUp(debtEl, debtUSDC, 0, ' USDC', 900);
+      countUp(debtEl, debtUSDC, 2, ' USDC', 900);
       ltvEl.textContent = (debtUSDC > 0 ? ltv.toFixed(0) : '0') + '% LTV';
 
       const collateralUsdEl = document.getElementById('collateralUsdVal');
@@ -1251,7 +1250,7 @@ async function runDashboardIntro(isLive){
   const demoScore = (state.debt === 0) ? 100 : normalizeHealthScore(demoHF);
   countUp(scoreEl, demoScore, 0, '', 900);
   countUp(collateralEl, 2.40, 2, ' MON', 900);
-  countUp(debtEl, 1200, 0, ' USDC', 900);
+  countUp(debtEl, 1200, 2, ' USDC', 900);
 }
 
 document.getElementById('howToggle').addEventListener('click', function(){
@@ -1507,7 +1506,7 @@ function mockSimulateRisk(){
 
     countUp(scoreEl, normalizeHealthScore(state.health), 0, '', 900);
     countUp(collateralEl, state.collateral, 2, ' MON', 900);
-    countUp(debtEl, state.debt, 0, ' USDC', 900);
+    countUp(debtEl, state.debt, 2, ' USDC', 900);
     ltvEl.textContent = newLtv + '% LTV';
     statusEl.textContent = 'SAFE';
     statusEl.classList.remove('at-risk');
