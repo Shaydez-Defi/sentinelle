@@ -1192,6 +1192,10 @@ async function runDashboardIntro(isLive){
         vaultRead.debt(userAddress),
         vaultRead.healthFactor(userAddress)
       ]);
+      console.log('RAW collateral:', rawCollateral.toString());
+      console.log('RAW debt:', rawDebt.toString());
+      console.log('RAW healthFactor:', rawHF.toString());
+      console.log('isMaxHF check:', rawHF > 1000000000n);
 
       const collateralMON = parseFloat(ethers.formatEther(rawCollateral));
       const debtUSDC = parseFloat(ethers.formatUnits(rawDebt, 6));
@@ -1208,6 +1212,7 @@ async function runDashboardIntro(isLive){
       const debtDisplayRounded = Math.round(debtUSDC);
       const isMaxHF = rawHF > 1000000000n || debtDisplayRounded === 0;
       const hfDisplay = isMaxHF ? 100 : Number(rawHF);
+      console.log('computed hfDisplay:', hfDisplay);
       const ltv = debtUSDC > 0 && collateralMON > 0 ? ((debtUSDC / (collateralMON * (state.ethPrice))) * 100) : 0;
 
       if(myRequestId !== dashboardRequestId) return;
