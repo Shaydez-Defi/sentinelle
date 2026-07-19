@@ -415,6 +415,21 @@ h1.mid{
 .wallet-chip .sep{ color:var(--muted); }
 .wallet-chip .demo-tag{ color:var(--teal); }
 
+.disconnect-btn{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;
+  letter-spacing:0.1em;
+  color:var(--muted);
+  background:transparent;
+  border:1px solid rgba(231,222,230,0.12);
+  padding:6px 12px;
+  border-radius:20px;
+  cursor:pointer;
+  transition:all 0.2s ease;
+  white-space:nowrap;
+}
+.disconnect-btn:hover{ color:var(--bone); border-color:var(--wine-bright); }
+
 .health-card{
   text-align:center;
   padding:36px 24px 28px;
@@ -941,7 +956,10 @@ h1.mid{
     <div class="dash-wrap">
       <div class="dash-topbar glass">
         <div class="mark">SENTINELLE</div>
-        <div class="wallet-chip glass" id="walletChip"><span class="dot"></span><span id="chipText">0x4F2...9B3</span></div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="wallet-chip glass" id="walletChip"><span class="dot"></span><span id="chipText">0x4F2...9B3</span></div>
+          <button class="disconnect-btn" id="disconnectBtn" onclick="disconnectWallet()">DISCONNECT</button>
+        </div>
       </div>
 
       <div class="dash-columns">
@@ -1048,6 +1066,8 @@ const VAULT_ABI = [
   "function monPriceUSD() view returns (uint256)",
   "event Deposited(address indexed user, uint256 amount)",
   "event Borrowed(address indexed user, uint256 amount)",
+  "event Repaid(address indexed user, uint256 amount)",
+  "event Withdrawn(address indexed user, uint256 amount)",
   "event AutoRepaid(address indexed user, uint256 debtRepaid, uint256 collateralSold, uint256 healthFactorBefore, uint256 healthFactorAfter)"
 ];
 
@@ -1237,6 +1257,8 @@ async function runDashboardIntro(isLive){
       } else {
         statusEl.textContent = debtUSDC === 0 ? 'NO DEBT' : 'SAFE';
       }
+
+      loadHistoryFromChain(userAddress);
     } catch(err){
       console.error('Failed to load live position:', err);
       showToast('Live Data Error', err.shortMessage || err.message || 'Failed to load position.', 'error');
@@ -1517,6 +1539,80 @@ function mockSimulateRisk(){
     simBtn.textContent = 'SIMULATE RISK EVENT';
   }, 3000);
 }
+
+async function loadHistoryFromChain(addr){
+  const logWrap = document.getElementById('logWrap');
+  const fromBlock = 45532538;
+  try{
+    const filters = [
+      vaultRead.filters.Deposited(addr),
+      vaultRead.filters.Borrowed(addr),
+      vaultRead.filters.Repaid(addr),
+      vaultRead.filters.Withdrawn(addr),
+      vaultRead.filters.AutoRepaid(addr)
+    ];
+    const results = await Promise.all(filters.map(f => vaultRead.queryFilter(f, fromBlock)));
+    let all = [];
+    results.forEach(r => all = all.concat(r));
+    all.sort((a,b) => b.blockNumber - a.blockNumber);
+    if(all.length === 0){
+      logWrap.innerHTML = '<div class="log-item"><div class="log-left"><div class="log-title">No activity yet</div><div class="log-reason">Real transactions will appear here once you deposit, borrow, repay, or withdraw</div></div></div>';
+      return;
+    }
+    let html = '';
+    all.forEach(ev => {
+      const name = ev.fragment.name;
+      let title, reason, rightHtml = '<div class="log-status">SUCCESS</div>';
+      const args = ev.args;
+      if(name === 'Deposited'){
+        title = 'Deposit';
+        reason = 'Deposited ' + parseFloat(ethers.formatEther(args.amount)).toFixed(4) + ' MON';
+      } else if(name === 'Borrowed'){
+        title = 'Borrow';
+        reason = 'Borrowed ' + parseFloat(ethers.formatUnits(args.amount, 6)).toFixed(2) + ' USDC';
+      } else if(name === 'Repaid'){
+        title = 'Repay';
+        reason = 'Repaid ' + parseFloat(ethers.formatUnits(args.amount, 6)).toFixed(2) + ' USDC';
+      } else if(name === 'Withdrawn'){
+        title = 'Withdraw';
+        reason = 'Withdrew ' + parseFloat(ethers.formatEther(args.amount)).toFixed(4) + ' MON';
+      } else if(name === 'AutoRepaid'){
+        title = 'Auto Repay';
+        reason = 'Health factor dropped, self repaid on chain';
+        const hfBefore = normalizeHealthScore(Number(args.healthFactorBefore));
+        const hfAfter = normalizeHealthScore(Number(args.healthFactorAfter));
+        rightHtml = '<div class="log-shift">' + hfBefore + ' &rarr; ' + hfAfter + '</div><div class="log-status">SUCCESS</div>';
+      }
+      html += '<div class="log-item"><div class="log-left"><div class="log-title">' + title + '</div><div class="log-reason">' + reason + '</div><div class="log-time">Block ' + ev.blockNumber.toLocaleString() + '</div></div><div class="log-right">' + rightHtml + '</div></div>';
+    });
+    logWrap.innerHTML = html;
+  } catch(err){
+    console.error('Failed to load history from chain:', err);
+  }
+}
+
+function disconnectWallet(){
+  userAddress = null;
+  signer = null;
+  provider = null;
+  vaultRead = null;
+  vaultWrite = null;
+  musdcWrite = null;
+  isOwner = false;
+  goTo('hero');
+}
+
+(async function autoReconnect(){
+  try{
+    if(!window.ethereum) return;
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    if(!accounts || accounts.length === 0) return;
+    await ensureMonadNetwork();
+    await finalizeConnection(window.ethereum);
+  } catch(err){
+    console.error('Auto-reconnect failed:', err);
+  }
+})();
 </script>
 
 
